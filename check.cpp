@@ -8,6 +8,13 @@
 
 using namespace std;
 
+struct NormalFormElement {
+    vector<int> strategy;
+    vector<int> who_can_improve;
+};
+
+vector<NormalFormElement> normal_form_arr;
+
 class Checker {
 private:
     int vertices_count;            // Number of vertices in the given graph
@@ -117,10 +124,14 @@ public:
 
     // Checks that the strategy is not a nash equililbrium
     void check_not_equilibrium(const vector<int>& strategy) {
+        vector<int> who_can_improve;
         for (int player = 0; player < players_count; ++player) {
             if (is_improvable_by_player(player, strategy))
-                return;
+                who_can_improve.push_back(player);
         }
+        normal_form_arr.push_back({strategy, who_can_improve});
+        if (!who_can_improve.empty())
+            return;
         is_correct = false;
         cout << endl;
         for (const auto& element : strategy) {
@@ -128,6 +139,16 @@ public:
         }
         cout << endl;
     }
+
+    vector<int> who_can_improve(const vector<int>& strategy) {
+        vector<int> who_can_improve_arr;
+        for (int player = 0; player < players_count; ++player) {
+            if (is_improvable_by_player(player, strategy))
+                who_can_improve_arr.push_back(player);
+        }
+        return who_can_improve_arr;
+    }
+
 
     // Recursively generates all strategies
     void strategies_generate(vector<int>& strategy, int current_vertex) {
@@ -171,13 +192,73 @@ public:
         strategies_generate(empty_strategy, 0);
         return is_correct;
     }
+
+    void make_tex_table() {
+        std::ofstream out("./tex.txt");
+        vector<vector<vector<string>>> out_arr(12, vector<vector<string>>(4, vector<string>(4)));
+        vector<string> outcomes = {"c_1", "c_2", "c_3", "a_1", "a_2"};
+        vector<string> vertex_names = {"s", "u_2", "u_1", "v_1", "v_2", "w_2", "w_1", "a_2", "a_1"};
+        vector<vector<int>> players_vertexes = {{0, 2, 3}, {1, 6}, {4 ,5}};
+        vector<vector<int>> player1_strategies;
+        vector<vector<int>> player2_strategies;
+        vector<vector<int>> player3_strategies;
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 2; ++j) {
+                for (int k = 0; k < 2; ++k) {
+                    player1_strategies.push_back({graph[players_vertexes[0][0]][i], graph[players_vertexes[0][1]][j], graph[players_vertexes[0][2]][k]});
+                }
+            }
+        }
+        for (int i = 0; i < 2; ++i) {
+            for (int j = 0; j < 2; ++j) {
+                player2_strategies.push_back({graph[players_vertexes[1][0]][i], graph[players_vertexes[1][1]][j]});
+            }
+        }
+        for (int i = 0; i < 2; ++i) {
+            for (int j = 0; j < 2; ++j) {
+                player3_strategies.push_back({graph[players_vertexes[2][0]][i], graph[players_vertexes[2][1]][j]});
+            }
+        }
+        for (int k = 0; k < 4; ++k) {
+            auto s3 = player3_strategies[k];
+            out << k + 1 << ". The third player strategy is " << "$(" << vertex_names[4] << " \\to " << vertex_names[player3_strategies[k][0]] << ", " << vertex_names[5] << " \\to " << vertex_names[player3_strategies[k][1]] << ")$\n";
+            out << "\\begin{center}\n";
+            out << "\\scriptsize\n";
+            out << "\\begin{tabular}{||c|c|c|c|c||}\n";
+            out << "\\hline\n";
+            out << "1st player / 2nd player & $(u_2 \\to u_1, w_1 \\to w_2)$ & $(u_2 \\to u_1, w_1 \\to a_1)$ & $(u_2 \\to v_2, w_1 \\to w_2)$ & $(u_2 \\to v_2, w_1 \\to a_1)$ \\\\ [0.5ex]\n";
+            out << "\\hline\\hline\n";
+            for (int i = 0; i < 12; ++i) {
+                auto s1 = player1_strategies[i];
+                out << "$(s \\to " << vertex_names[s1[0]] << ", " << "u_1 \\to " << vertex_names[s1[1]] << ", " << "v_1 \\to " << vertex_names[s1[2]] << ")$ & ";
+                for (int j = 0; j < 4; ++j) {
+                    auto s2 = player2_strategies[j];
+                    vector<int> strategy = {s1[0], s2[0], s1[1], s1[2], s3[0], s3[1], s2[1], 7, 8};
+                    auto improve_arr = who_can_improve(strategy);
+                    auto end_cmp_name = outcomes[find_strategy_outcome(strategy)];
+                    out << "$" + end_cmp_name;
+                    out << "^{" + to_string(improve_arr[0] + 1);
+                    if (improve_arr.size() >= 2) {
+                        out << ", " + to_string(improve_arr[1] + 1);
+                    }
+                    if (improve_arr.size() >= 3) {
+                        out << ", " + to_string(improve_arr[2] + 1);
+                    }
+                    out << "}$";
+                    if (j != 3) {
+                        out << " & ";
+                    }
+                }
+                out << " \\\\ \n";
+            }
+            out << "\\end{tabular}\n";
+            out << "\\end{center}\n\n\n";
+        }
+    }
 };
 
 int main() {
     Checker checker;
-    if (checker.check()) {
-        cout << "OK.\n";
-    } else {
-        cout << "Something went wrong.\n";
-    }
+    checker.check();
+    checker.make_tex_table();
 }
